@@ -11,8 +11,40 @@ export const EVENTTAP_HOTKEYS = new Set([
   "tab",
 ]);
 
+const BARE_NAMED_KEYS = new Set([
+  "space",
+  "enter",
+  "return",
+  "backspace",
+  "arrowup",
+  "arrowdown",
+  "arrowleft",
+  "arrowright",
+  "minus",
+  "equal",
+  "bracketleft",
+  "bracketright",
+  "backslash",
+  "semicolon",
+  "quote",
+  "comma",
+  "period",
+  "slash",
+  "backquote",
+]);
+
+/**
+ * Returns true if the key is a bare printable key (single character a-z, 0-9,
+ * or one of the named printable/navigation keys) with no modifier chords.
+ */
+export function isBarePrintableKey(key: string): boolean {
+  if (key.includes("+")) return false;
+  const k = key.toLowerCase();
+  return /^[a-z0-9]$/.test(k) || BARE_NAMED_KEYS.has(k);
+}
+
 export function isEventTapHotkey(key: string): boolean {
-  return EVENTTAP_HOTKEYS.has(key);
+  return EVENTTAP_HOTKEYS.has(key) || isBarePrintableKey(key);
 }
 
 export function formatHotkeyLabel(key: string): string {
