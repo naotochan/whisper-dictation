@@ -146,7 +146,7 @@ extern "C" fn event_tap_callback(
 
 /// Returns true if the given hotkey string should use CGEventTap instead of global-shortcut.
 pub fn is_eventtap_key(key: &str) -> bool {
-    matches!(
+    let is_named_modifier_or_tab = matches!(
         key,
         "right_shift"
             | "left_shift"
@@ -157,7 +157,71 @@ pub fn is_eventtap_key(key: &str) -> bool {
             | "left_option"
             | "right_option"
             | "tab"
-    )
+    );
+
+    is_named_modifier_or_tab || (!key.contains('+') && normal_keycode_for_name(key).is_some())
+}
+
+/// Map a bare key name (letters, digits, punctuation, arrows, etc.) to macOS ANSI virtual keycode.
+/// Does not include modifiers, tab, escape, or F-keys.
+pub fn normal_keycode_for_name(name: &str) -> Option<i64> {
+    match name.to_ascii_lowercase().as_str() {
+        "a" => Some(0x00),
+        "s" => Some(0x01),
+        "d" => Some(0x02),
+        "f" => Some(0x03),
+        "h" => Some(0x04),
+        "g" => Some(0x05),
+        "z" => Some(0x06),
+        "x" => Some(0x07),
+        "c" => Some(0x08),
+        "v" => Some(0x09),
+        "b" => Some(0x0B),
+        "q" => Some(0x0C),
+        "w" => Some(0x0D),
+        "e" => Some(0x0E),
+        "r" => Some(0x0F),
+        "y" => Some(0x10),
+        "t" => Some(0x11),
+        "1" => Some(0x12),
+        "2" => Some(0x13),
+        "3" => Some(0x14),
+        "4" => Some(0x15),
+        "6" => Some(0x16),
+        "5" => Some(0x17),
+        "equal" => Some(0x18),
+        "9" => Some(0x19),
+        "7" => Some(0x1A),
+        "minus" => Some(0x1B),
+        "8" => Some(0x1C),
+        "0" => Some(0x1D),
+        "bracketright" => Some(0x1E),
+        "o" => Some(0x1F),
+        "u" => Some(0x20),
+        "bracketleft" => Some(0x21),
+        "i" => Some(0x22),
+        "p" => Some(0x23),
+        "enter" | "return" => Some(0x24),
+        "l" => Some(0x25),
+        "j" => Some(0x26),
+        "quote" => Some(0x27),
+        "k" => Some(0x28),
+        "semicolon" => Some(0x29),
+        "backslash" => Some(0x2A),
+        "comma" => Some(0x2B),
+        "slash" => Some(0x2C),
+        "n" => Some(0x2D),
+        "m" => Some(0x2E),
+        "period" => Some(0x2F),
+        "space" => Some(0x31),
+        "backquote" => Some(0x32),
+        "backspace" => Some(0x33),
+        "arrowleft" => Some(0x7B),
+        "arrowright" => Some(0x7C),
+        "arrowdown" => Some(0x7D),
+        "arrowup" => Some(0x7E),
+        _ => None,
+    }
 }
 
 /// Install a CGEventTap on the **main** run loop that listens for the given key.
@@ -203,9 +267,16 @@ pub fn install_key_listener(hotkey: &str, mut callback: impl FnMut(bool) + Send 
             TargetKey::Normal { keycode: KVK_TAB },
             (1u64 << K_CG_EVENT_KEY_DOWN) | (1u64 << K_CG_EVENT_KEY_UP),
         ),
-        _ => {
-            log::error!("install_key_listener called with unsupported key: {}", hotkey);
-            return;
+        other => {
+            if let Some(keycode) = normal_keycode_for_name(other) {
+                (
+                    TargetKey::Normal { keycode },
+                    (1u64 << K_CG_EVENT_KEY_DOWN) | (1u64 << K_CG_EVENT_KEY_UP),
+                )
+            } else {
+                log::error!("install_key_listener called with unsupported key: {}", hotkey);
+                return;
+            }
         }
     };
 
