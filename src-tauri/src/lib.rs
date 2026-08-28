@@ -1250,6 +1250,9 @@ fn set_overlay_visible(app_handle: &tauri::AppHandle, visible: bool) {
                     (y * scale) as i32,
                 ));
             }
+            // The overlay must never become key/main or focusable (never call
+            // set_focus() on it; keep "focusable": false in tauri.conf.json) —
+            // that would activate Flow and steal focus from the user's target app.
             let _ = overlay.show();
         } else {
             let _ = overlay.hide();
