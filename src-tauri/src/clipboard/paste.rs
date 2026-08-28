@@ -1,7 +1,21 @@
 use arboard::Clipboard;
-use enigo::{Direction, Enigo, Key, Keyboard, Settings};
+use std::ffi::c_void;
 use std::thread;
 use std::time::Duration;
+
+const K_CG_HID_EVENT_TAP: u32 = 0;
+const K_CG_EVENT_FLAG_MASK_COMMAND: u64 = 0x0010_0000;
+
+extern "C" {
+    fn CGEventCreateKeyboardEvent(
+        source: *const c_void,
+        keycode: u16,
+        keydown: bool,
+    ) -> *mut c_void;
+    fn CGEventSetFlags(event: *mut c_void, flags: u64);
+    fn CGEventPost(tap: u32, event: *mut c_void);
+    fn CFRelease(cf: *mut c_void);
+}
 
 pub fn copy_text(text: &str) -> Result<(), Box<dyn std::error::Error>> {
     let mut clipboard = Clipboard::new()?;
@@ -25,16 +39,40 @@ pub fn restore_clipboard(previous: Option<&str>) -> Result<(), Box<dyn std::erro
     Ok(())
 }
 
+/// Synthesizes a Cmd+<chord> keyboard event using CoreGraphics.
+/// Explicitly sets the Command modifier flag so that any physically-held modifier
+/// (e.g. Option or Shift used in hotkeys) does not leak into the synthesized event
+/// and trigger unwanted window-manager or system shortcuts.
 fn simulate_key(chord: char) -> Result<(), Box<dyn std::error::Error>> {
-    // Split Press/Release with small delays — same pattern as paste (Cmd+V).
-    let mut enigo = Enigo::new(&Settings::default())?;
-    enigo.key(Key::Meta, Direction::Press)?;
-    thread::sleep(Duration::from_millis(30));
-    enigo.key(Key::Unicode(chord), Direction::Press)?;
-    thread::sleep(Duration::from_millis(30));
-    enigo.key(Key::Unicode(chord), Direction::Release)?;
-    thread::sleep(Duration::from_millis(30));
-    enigo.key(Key::Meta, Direction::Release)?;
+    let keycode: u16 = match chord {
+        'c' => 0x08,
+        'v' => 0x09,
+        'z' => 0x06,
+        _ => return Err(format!("Unsupported chord key: {}", chord).into()),
+    };
+
+    unsafe {
+        // Key down with explicit Command-only flag
+        let event_down = CGEventCreateKeyboardEvent(std::ptr::null(), keycode, true);
+        if event_down.is_null() {
+            return Err("Failed to create CGEvent for key down".into());
+        }
+        CGEventSetFlags(event_down, K_CG_EVENT_FLAG_MASK_COMMAND);
+        CGEventPost(K_CG_HID_EVENT_TAP, event_down);
+        CFRelease(event_down);
+
+        thread::sleep(Duration::from_millis(30));
+
+        // Key up with explicit Command-only flag
+        let event_up = CGEventCreateKeyboardEvent(std::ptr::null(), keycode, false);
+        if event_up.is_null() {
+            return Err("Failed to create CGEvent for key up".into());
+        }
+        CGEventSetFlags(event_up, K_CG_EVENT_FLAG_MASK_COMMAND);
+        CGEventPost(K_CG_HID_EVENT_TAP, event_up);
+        CFRelease(event_up);
+    }
+
     Ok(())
 }
 
