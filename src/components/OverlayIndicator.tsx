@@ -69,12 +69,15 @@ function LevelBars({ level }: { level: number }) {
 
 function recordingGlow(level: number): string {
   const amplified = Math.min(1, Math.pow(level, 0.35) * 1.8);
-  const blurTeal = 18 + amplified * 12;
+  const blurTeal = 16 + amplified * 10;
   const alphaTeal = 0.35 + amplified * 0.25;
-  const blurBlue = 50 + amplified * 20;
+  const blurBlue = 40 + amplified * 16;
   const alphaBlue = 0.18 + amplified * 0.17;
   return `0 0 ${blurTeal}px rgba(45,212,191,${alphaTeal}), 0 0 ${blurBlue}px rgba(59,130,246,${alphaBlue})`;
 }
+
+const PROCESSING_STATIC_GLOW =
+  "0 0 16px rgba(251,191,36,0.35), 0 0 40px rgba(249,115,22,0.2)";
 
 function CheckIcon() {
   return (
@@ -98,6 +101,9 @@ export function OverlayIndicator() {
   const { state, audioLevel, lastTranscription, error } = useRecordingState();
   const [lang, setLang] = useState<UILanguage>("ja");
   const [demoLevel, setDemoLevel] = useState(0.5);
+  const [prefersReducedMotion] = useState(
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
 
   useEffect(() => {
     getSettings()
@@ -152,6 +158,7 @@ export function OverlayIndicator() {
           background: "linear-gradient(120deg, #b45309, #f59e0b, #f97316, #f43f5e, #b45309)",
           backgroundSize: "300% 300%",
           animation: "gradientShift 6s ease-in-out infinite, glowPulse 2.4s ease-in-out infinite",
+          ...(prefersReducedMotion ? { boxShadow: PROCESSING_STATIC_GLOW } : {}),
           maxWidth: "90vw",
         }
       : {
@@ -163,8 +170,8 @@ export function OverlayIndicator() {
           background: "linear-gradient(120deg, #0f766e, #06b6d4, #3b82f6, #8b5cf6, #0f766e)",
           backgroundSize: "300% 300%",
           animation: "gradientShift 6s ease-in-out infinite",
-          boxShadow: recordingGlow(effectiveLevel),
-          transition: "box-shadow 100ms ease-out",
+          boxShadow: prefersReducedMotion ? recordingGlow(0) : recordingGlow(effectiveLevel),
+          transition: prefersReducedMotion ? undefined : "box-shadow 100ms ease-out",
           maxWidth: "90vw",
         }
     : {
@@ -199,8 +206,8 @@ export function OverlayIndicator() {
           50% { background-position: 100% 50%; }
         }
         @keyframes glowPulse {
-          0%, 100% { box-shadow: 0 0 18px rgba(251,191,36,0.35), 0 0 50px rgba(249,115,22,0.2); }
-          50% { box-shadow: 0 0 30px rgba(251,191,36,0.55), 0 0 70px rgba(249,115,22,0.35); }
+          0%, 100% { box-shadow: 0 0 16px rgba(251,191,36,0.35), 0 0 40px rgba(249,115,22,0.2); }
+          50% { box-shadow: 0 0 26px rgba(251,191,36,0.55), 0 0 56px rgba(249,115,22,0.35); }
         }
         @media (prefers-reduced-motion: reduce) {
           * { animation: none !important; transition: none !important; }

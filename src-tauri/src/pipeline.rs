@@ -35,20 +35,20 @@ fn hide_overlay(app_handle: &AppHandle) {
     if let Some(overlay) = app_handle.get_webview_window("overlay") {
         let _ = overlay.hide();
         // Reset to default pill size
-        let _ = overlay.set_size(tauri::LogicalSize::new(320.0, 88.0));
+        let _ = overlay.set_size(tauri::LogicalSize::new(340.0, 112.0));
     }
 }
 
 /// Resize overlay to show transcription result text.
 fn resize_overlay_for_result(app_handle: &AppHandle) {
     if let Some(overlay) = app_handle.get_webview_window("overlay") {
-        let _ = overlay.set_size(tauri::LogicalSize::new(500.0, 88.0));
+        let _ = overlay.set_size(tauri::LogicalSize::new(500.0, 112.0));
         // Re-center on screen
         if let Ok(Some(monitor)) = overlay.primary_monitor() {
             let screen = monitor.size();
             let scale = monitor.scale_factor();
             let win_w = 500.0;
-            let win_h = 88.0;
+            let win_h = 112.0;
             let x = (screen.width as f64 / scale - win_w) / 2.0;
             let y = screen.height as f64 / scale - win_h - 80.0;
             let _ = overlay.set_position(tauri::PhysicalPosition::new(
