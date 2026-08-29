@@ -6,8 +6,10 @@ import { applyAppearance, AppAppearance } from "../lib/theme";
 
 const O = translations.overlay;
 
+const demo = new URLSearchParams(window.location.search).get("demo");
+
 /** Animated bars for the "processing" state. */
-function ProcessingBars({ color }: { color: string }) {
+function ProcessingBars() {
   const bars = [
     { delay: "0s", height: "40%" },
     { delay: "0.15s", height: "70%" },
@@ -17,13 +19,14 @@ function ProcessingBars({ color }: { color: string }) {
   ];
 
   return (
-    <div className="flex items-center gap-[3px] h-5" aria-hidden="true">
+    <div className="flex items-center gap-[3px]" style={{ height: "24px" }} aria-hidden="true">
       {bars.map((bar, i) => (
         <div
           key={i}
-          className="w-[3px] rounded-full motion-safe:animate-none"
+          className="rounded-full"
           style={{
-            backgroundColor: color,
+            width: "4px",
+            backgroundColor: "rgba(255,255,255,0.95)",
             height: bar.height,
             animation: "waveform 1s ease-in-out infinite",
             animationDelay: bar.delay,
@@ -35,13 +38,13 @@ function ProcessingBars({ color }: { color: string }) {
 }
 
 /** Level-reactive bars for the "recording" state. */
-function LevelBars({ color, level }: { color: string; level: number }) {
+function LevelBars({ level }: { level: number }) {
   const amplified = Math.min(1, Math.pow(level, 0.35) * 1.8);
   const offsets = [0.35, 0.75, 1.0, 0.6, 0.85];
 
   return (
     <div
-      style={{ display: "flex", alignItems: "center", gap: "3px", height: "20px" }}
+      style={{ display: "flex", alignItems: "center", gap: "3px", height: "24px" }}
       aria-hidden="true"
     >
       {offsets.map((off, i) => {
@@ -50,9 +53,9 @@ function LevelBars({ color, level }: { color: string; level: number }) {
           <div
             key={i}
             style={{
-              width: "3px",
+              width: "4px",
               borderRadius: "9999px",
-              backgroundColor: color,
+              backgroundColor: "rgba(255,255,255,0.95)",
               height: "100%",
               transform: `scaleY(${barScale})`,
               transition: "transform 50ms ease-out",
@@ -63,6 +66,18 @@ function LevelBars({ color, level }: { color: string; level: number }) {
     </div>
   );
 }
+
+function recordingGlow(level: number): string {
+  const amplified = Math.min(1, Math.pow(level, 0.35) * 1.8);
+  const blurTeal = 16 + amplified * 10;
+  const alphaTeal = 0.35 + amplified * 0.25;
+  const blurBlue = 40 + amplified * 16;
+  const alphaBlue = 0.18 + amplified * 0.17;
+  return `0 0 ${blurTeal}px rgba(45,212,191,${alphaTeal}), 0 0 ${blurBlue}px rgba(59,130,246,${alphaBlue})`;
+}
+
+const PROCESSING_STATIC_GLOW =
+  "0 0 16px rgba(251,191,36,0.35), 0 0 40px rgba(249,115,22,0.2)";
 
 function CheckIcon() {
   return (
@@ -85,6 +100,10 @@ function WarningIcon() {
 export function OverlayIndicator() {
   const { state, audioLevel, lastTranscription, error } = useRecordingState();
   const [lang, setLang] = useState<UILanguage>("ja");
+  const [demoLevel, setDemoLevel] = useState(0.5);
+  const [prefersReducedMotion] = useState(
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
 
   useEffect(() => {
     getSettings()
@@ -95,13 +114,27 @@ export function OverlayIndicator() {
       .catch(() => {});
   }, []);
 
-  const isError = state === "error";
-  const isRecording = state === "recording";
-  const isProcessing = state === "processing";
-  const isIdle = state === "idle";
+  useEffect(() => {
+    if (demo !== "recording") return;
+    const start = Date.now();
+    const id = setInterval(() => {
+      const t = (Date.now() - start) / 1000;
+      const level = 0.35 + 0.3 * Math.sin(t * 2) + (Math.random() - 0.5) * 0.05;
+      setDemoLevel(Math.min(1, Math.max(0, level)));
+    }, 50);
+    return () => clearInterval(id);
+  }, []);
+
+  const effectiveState =
+    demo === "recording" ? "recording" : demo === "processing" ? "processing" : state;
+  const effectiveLevel = demo === "recording" ? demoLevel : audioLevel;
+
+  const isError = effectiveState === "error";
+  const isRecording = effectiveState === "recording";
+  const isProcessing = effectiveState === "processing";
+  const isIdle = effectiveState === "idle";
   const showResult = isIdle && lastTranscription;
 
-  const barColor = isProcessing ? "#fbbf24" : "#2dd4bf";
   const label = isProcessing
     ? t(O.processing, lang)
     : isRecording
@@ -111,6 +144,46 @@ export function OverlayIndicator() {
   const errorText =
     error?.trim() ||
     t(O.serverNotRunning, lang);
+
+  const isGradientPill = isRecording || isProcessing;
+
+  const pillStyle: React.CSSProperties = isGradientPill
+    ? isProcessing
+      ? {
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "10px",
+          padding: "10px 18px",
+          borderRadius: "9999px",
+          background: "linear-gradient(120deg, #b45309, #f59e0b, #f97316, #f43f5e, #b45309)",
+          backgroundSize: "300% 300%",
+          animation: "gradientShift 6s ease-in-out infinite, glowPulse 2.4s ease-in-out infinite",
+          ...(prefersReducedMotion ? { boxShadow: PROCESSING_STATIC_GLOW } : {}),
+          maxWidth: "90vw",
+        }
+      : {
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "10px",
+          padding: "10px 18px",
+          borderRadius: "9999px",
+          background: "linear-gradient(120deg, #0f766e, #06b6d4, #3b82f6, #8b5cf6, #0f766e)",
+          backgroundSize: "300% 300%",
+          animation: "gradientShift 6s ease-in-out infinite",
+          boxShadow: prefersReducedMotion ? recordingGlow(0) : recordingGlow(effectiveLevel),
+          transition: prefersReducedMotion ? undefined : "box-shadow 100ms ease-out",
+          maxWidth: "90vw",
+        }
+    : {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "10px",
+        padding: "8px 16px",
+        borderRadius: "9999px",
+        backgroundColor: "rgba(0, 0, 0, 0.85)",
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+        maxWidth: "90vw",
+      };
 
   return (
     <>
@@ -128,6 +201,14 @@ export function OverlayIndicator() {
           0%, 100% { transform: scaleY(0.4); }
           50% { transform: scaleY(1); }
         }
+        @keyframes gradientShift {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        @keyframes glowPulse {
+          0%, 100% { box-shadow: 0 0 16px rgba(251,191,36,0.35), 0 0 40px rgba(249,115,22,0.2); }
+          50% { box-shadow: 0 0 26px rgba(251,191,36,0.55), 0 0 56px rgba(249,115,22,0.35); }
+        }
         @media (prefers-reduced-motion: reduce) {
           * { animation: none !important; transition: none !important; }
         }
@@ -143,18 +224,7 @@ export function OverlayIndicator() {
           height: "100%",
         }}
       >
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "10px",
-            padding: "8px 16px",
-            borderRadius: "9999px",
-            backgroundColor: "rgba(0, 0, 0, 0.85)",
-            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
-            maxWidth: "90vw",
-          }}
-        >
+        <div style={pillStyle}>
           {isError ? (
             <>
               <WarningIcon />
@@ -192,15 +262,16 @@ export function OverlayIndicator() {
           ) : (
             <>
               {isProcessing ? (
-                <ProcessingBars color={barColor} />
+                <ProcessingBars />
               ) : (
-                <LevelBars color={barColor} level={audioLevel} />
+                <LevelBars level={effectiveLevel} />
               )}
               <span
                 style={{
-                  fontSize: "11px",
-                  fontWeight: 500,
-                  color: "rgba(255, 255, 255, 0.7)",
+                  fontSize: isGradientPill ? "12px" : "11px",
+                  fontWeight: isGradientPill ? 600 : 500,
+                  color: isGradientPill ? "#fff" : "rgba(255, 255, 255, 0.7)",
+                  textShadow: isGradientPill ? "0 1px 6px rgba(0,0,0,0.35)" : undefined,
                   whiteSpace: "nowrap",
                 }}
               >

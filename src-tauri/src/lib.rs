@@ -1241,8 +1241,8 @@ fn set_overlay_visible(app_handle: &tauri::AppHandle, visible: bool) {
             if let Ok(Some(monitor)) = overlay.primary_monitor() {
                 let screen = monitor.size();
                 let scale = monitor.scale_factor();
-                let win_w = 200.0;
-                let win_h = 44.0;
+                let win_w = 340.0;
+                let win_h = 112.0;
                 let x = (screen.width as f64 / scale - win_w) / 2.0;
                 let y = screen.height as f64 / scale - win_h - 80.0;
                 let _ = overlay.set_position(tauri::PhysicalPosition::new(

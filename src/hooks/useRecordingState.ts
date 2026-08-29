@@ -39,20 +39,28 @@ export function useRecordingState() {
       if (event.payload.state !== "recording") {
         setAudioLevel(0);
       }
-    }).then((unlisten) => unlisteners.push(unlisten));
+    })
+      .then((unlisten) => unlisteners.push(unlisten))
+      .catch(() => {});
 
     listen<TranscriptionResultPayload>("transcription-result", (event) => {
       setLastTranscription(event.payload.text);
       setLastRawTranscription(event.payload.raw_text);
-    }).then((unlisten) => unlisteners.push(unlisten));
+    })
+      .then((unlisten) => unlisteners.push(unlisten))
+      .catch(() => {});
 
     listen<ErrorPayload>("error", (event) => {
       setError(event.payload.message);
-    }).then((unlisten) => unlisteners.push(unlisten));
+    })
+      .then((unlisten) => unlisteners.push(unlisten))
+      .catch(() => {});
 
     listen<AudioLevelPayload>("audio-level", (event) => {
       setAudioLevel(event.payload.level);
-    }).then((unlisten) => unlisteners.push(unlisten));
+    })
+      .then((unlisten) => unlisteners.push(unlisten))
+      .catch(() => {});
 
     return () => {
       unlisteners.forEach((fn) => fn());
